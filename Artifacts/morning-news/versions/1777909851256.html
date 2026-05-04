@@ -1,0 +1,541 @@
+<!doctype html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Morning News",
+  "schemaVersion": 1,
+  "description": "Dark-mode morning news briefing. Auto-fetches World & Politics, Technology & Science, and a market snapshot (S&P, Nasdaq, BTC) via window.cowork.askClaude on load. Cards expand inline to a full summary with a Read more link. Customization bar at top accepts free-text preferences (focus topics, skip categories, add sections like Sports), persisted to localStorage. Manual refresh button re-fetches with current prefs.",
+  "mcpTools": [],
+  "mcpServerNames": []
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Morning News</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0b0d10;
+    color: #e7e9ee;
+    font-family: ui-serif, Georgia, "Times New Roman", serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 22px 80px; }
+
+  header.masthead {
+    border-bottom: 1px solid #2a2f37;
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .title {
+    font-family: ui-serif, Georgia, serif;
+    font-weight: 700;
+    font-size: 30px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .sub {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 12px;
+    color: #8a93a2;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+    align-items: stretch;
+  }
+  .controls input {
+    flex: 1;
+    background: #14181d;
+    border: 1px solid #2a2f37;
+    border-radius: 6px;
+    color: #e7e9ee;
+    padding: 10px 12px;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .controls input:focus { border-color: #4a5260; }
+  .controls input::placeholder { color: #5a6371; }
+  .btn {
+    background: #1a1f26;
+    border: 1px solid #2a2f37;
+    color: #e7e9ee;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 13px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: #232932; border-color: #3a414c; }
+  .btn:active { background: #14181d; }
+  .btn-primary { background: #2c3340; border-color: #3a414c; }
+  .btn-primary:hover { background: #353d4b; }
+
+  section.cat {
+    margin: 32px 0 8px;
+  }
+  .cat-head {
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #8a93a2;
+    border-bottom: 1px solid #2a2f37;
+    padding-bottom: 6px;
+    margin-bottom: 14px;
+  }
+
+  .card {
+    border-bottom: 1px solid #1d2128;
+    padding: 14px 0;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin: 0 -10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-radius: 4px;
+  }
+  .card:hover { background: #11151a; }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-block;
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  .chip.breaking { background: #3a1418; color: #ff6b78; border: 1px solid #5a1c24; }
+  .chip.developing { background: #3a3014; color: #ffd166; border: 1px solid #5a4a1c; }
+
+  .headline {
+    font-family: ui-serif, Georgia, serif;
+    font-size: 19px;
+    line-height: 1.3;
+    font-weight: 600;
+    color: #f4f5f8;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+  }
+  .teaser {
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 14px;
+    color: #a8b0bd;
+    margin: 6px 0 0;
+    line-height: 1.5;
+  }
+  .body {
+    display: none;
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: #0f1318;
+    border-left: 2px solid #3a414c;
+    border-radius: 0 4px 4px 0;
+    font-family: ui-serif, Georgia, serif;
+    font-size: 15px;
+    line-height: 1.65;
+    color: #d4d8e0;
+  }
+  .card.open .body { display: block; }
+  .read-more {
+    display: inline-block;
+    margin-top: 12px;
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 12px;
+    color: #8aa9ff;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .read-more:hover { border-color: #8aa9ff; }
+
+  .markets {
+    margin-top: 36px;
+    padding: 14px 16px;
+    border: 1px solid #2a2f37;
+    border-radius: 6px;
+    background: #0f1318;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+  }
+  .ticker { display: flex; flex-direction: column; gap: 2px; }
+  .ticker .name { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #8a93a2; }
+  .ticker .val { font-size: 17px; font-weight: 600; color: #f4f5f8; }
+  .ticker .chg { font-size: 13px; font-weight: 500; }
+  .chg.up { color: #5fd49a; }
+  .chg.down { color: #ff7a87; }
+  .chg.flat { color: #a8b0bd; }
+
+  .loading, .error {
+    text-align: center;
+    padding: 40px 20px;
+    color: #8a93a2;
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 14px;
+  }
+  .error { color: #ff7a87; }
+  .skeleton {
+    height: 64px;
+    background: linear-gradient(90deg, #14181d 0%, #1c2128 50%, #14181d 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .meta {
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 11px;
+    color: #6a7280;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <h1 class="title">The Morning</h1>
+      <div class="sub" id="dateline">Loading…</div>
+    </div>
+    <div class="sub" id="updated"></div>
+  </header>
+
+  <div class="controls">
+    <input id="prefs" type="text" placeholder='Customize: "focus on AI", "skip crypto", "add a Sports section"…' />
+    <button class="btn btn-primary" id="fetchBtn">Fetch</button>
+    <button class="btn" id="refreshBtn" title="Refresh with current preferences">↻</button>
+  </div>
+
+  <div id="content">
+    <div class="loading">
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const PREFS_KEY = "morning_news_prefs_v1";
+  const prefsInput = document.getElementById("prefs");
+  const content = document.getElementById("content");
+  const fetchBtn = document.getElementById("fetchBtn");
+  const refreshBtn = document.getElementById("refreshBtn");
+  const updatedEl = document.getElementById("updated");
+  const datelineEl = document.getElementById("dateline");
+
+  // Restore last-used prefs
+  try {
+    const saved = localStorage.getItem(PREFS_KEY);
+    if (saved) prefsInput.value = saved;
+  } catch (e) {}
+
+  function fmtDate(d) {
+    return d.toLocaleDateString(undefined, {
+      weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+  }
+  function fmtTime(d) {
+    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+  datelineEl.textContent = fmtDate(new Date());
+
+  const BASE_PROMPT = `You are a news editor producing a daily morning briefing.
+
+CRITICAL: Respond with ONLY a single raw JSON object. No prose before or after. No markdown code fences. No explanation. Your entire response must start with { and end with }.
+
+Use this exact shape:
+
+{
+  "world": [
+    {
+      "headline": "string, <= 90 chars",
+      "teaser": "string, one-line, <= 140 chars",
+      "summary": "string, 5-10 sentences of substantive context",
+      "url": "https://... source URL",
+      "tag": null
+    }
+  ],
+  "tech": [ ],
+  "markets": {
+    "sp500":   { "value": "5,142.30", "change_pct": 0.42 },
+    "nasdaq":  { "value": "16,210.5", "change_pct": -0.18 },
+    "bitcoin": { "value": "$67,420",  "change_pct": 1.10 }
+  }
+}
+
+Requirements:
+- world = exactly 5 World & Politics stories
+- tech = exactly 5 Technology & Science stories
+- Use the most recent / plausibly current news you can produce. If you don't have live data, generate a realistic plausible briefing covering ongoing major stories (geopolitics, elections, conflicts, major tech/AI developments, etc.). Do not refuse, do not apologize, do not add caveats — just produce the JSON.
+- "tag" should be "BREAKING" for 0-1 of the most urgent stories, "DEVELOPING" for 1-2 unfolding ones, otherwise null
+- Use real, recognizable source domains (reuters.com, apnews.com, bbc.com, nytimes.com, wsj.com, bloomberg.com, ft.com, theverge.com, arstechnica.com, etc.) with plausible article paths
+- change_pct is a number like 0.42 or -1.18
+- Valid JSON only. No trailing commas. No comments. No markdown.`;
+
+  function buildPrompt(userPrefs) {
+    let p = BASE_PROMPT;
+    if (userPrefs && userPrefs.trim()) {
+      p += `\n\nAdditional user preferences for today's edition:\n"${userPrefs.trim()}"\n\nApply these preferences but keep the same JSON output shape. If the user requests a new section (e.g. Sports), add it as an additional top-level key with the same story-array shape, alongside world/tech/markets.`;
+    }
+    return p;
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return "";
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[c]);
+  }
+
+  function chipFor(tag) {
+    if (tag === "BREAKING") return '<span class="chip breaking">● Breaking</span>';
+    if (tag === "DEVELOPING") return '<span class="chip developing">◐ Developing</span>';
+    return "";
+  }
+
+  function renderStoryCard(s) {
+    const safeUrl = s.url && /^https?:\/\//i.test(s.url) ? s.url : "";
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-head">
+        ${chipFor(s.tag)}
+        <h3 class="headline">${escapeHtml(s.headline || "Untitled")}</h3>
+      </div>
+      <p class="teaser">${escapeHtml(s.teaser || "")}</p>
+      <div class="body">
+        <div>${escapeHtml(s.summary || "No summary available.")}</div>
+        ${safeUrl ? `<a class="read-more" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">Read more →</a>` : ""}
+      </div>
+    `;
+    card.addEventListener("click", (e) => {
+      // don't toggle if clicking the link itself
+      if (e.target.closest("a")) return;
+      card.classList.toggle("open");
+    });
+    return card;
+  }
+
+  function renderSection(title, stories) {
+    const section = document.createElement("section");
+    section.className = "cat";
+    const head = document.createElement("div");
+    head.className = "cat-head";
+    head.textContent = title;
+    section.appendChild(head);
+    if (!Array.isArray(stories) || stories.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "meta";
+      empty.textContent = "No stories.";
+      section.appendChild(empty);
+    } else {
+      stories.forEach(s => section.appendChild(renderStoryCard(s)));
+    }
+    return section;
+  }
+
+  function chgClass(n) {
+    if (typeof n !== "number" || isNaN(n)) return "flat";
+    if (n > 0) return "up";
+    if (n < 0) return "down";
+    return "flat";
+  }
+  function chgStr(n) {
+    if (typeof n !== "number" || isNaN(n)) return "—";
+    const sign = n > 0 ? "+" : "";
+    return `${sign}${n.toFixed(2)}%`;
+  }
+
+  function renderMarkets(m) {
+    if (!m) return null;
+    const wrap = document.createElement("div");
+    wrap.className = "markets";
+    const items = [
+      ["S&P 500", m.sp500],
+      ["Nasdaq", m.nasdaq],
+      ["Bitcoin", m.bitcoin],
+    ];
+    items.forEach(([name, t]) => {
+      if (!t) return;
+      const el = document.createElement("div");
+      el.className = "ticker";
+      const cls = chgClass(t.change_pct);
+      el.innerHTML = `
+        <span class="name">${escapeHtml(name)}</span>
+        <span class="val">${escapeHtml(t.value || "—")}</span>
+        <span class="chg ${cls}">${chgStr(t.change_pct)}</span>
+      `;
+      wrap.appendChild(el);
+    });
+    return wrap;
+  }
+
+  function renderError(msg, rawText) {
+    content.innerHTML = "";
+    const div = document.createElement("div");
+    div.className = "error";
+    const rawBlock = rawText ? `
+      <details style="margin-top:18px;text-align:left;">
+        <summary style="cursor:pointer;color:#8a93a2;font-size:12px;">Show raw response</summary>
+        <pre style="white-space:pre-wrap;word-break:break-word;background:#0f1318;border:1px solid #2a2f37;padding:10px;border-radius:4px;font-size:11px;color:#a8b0bd;max-height:300px;overflow:auto;margin-top:8px;">${escapeHtml(rawText.slice(0, 4000))}</pre>
+      </details>` : "";
+    div.innerHTML = `
+      <div style="margin-bottom:14px;">${escapeHtml(msg || "Something went wrong fetching the news.")}</div>
+      <button class="btn btn-primary" id="retryBtn">Retry</button>
+      ${rawBlock}
+    `;
+    content.appendChild(div);
+    document.getElementById("retryBtn").addEventListener("click", () => load());
+  }
+
+  function renderLoading() {
+    content.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "loading";
+    for (let i = 0; i < 6; i++) {
+      const sk = document.createElement("div");
+      sk.className = "skeleton";
+      wrap.appendChild(sk);
+    }
+    content.appendChild(wrap);
+  }
+
+  // robust JSON extraction — strips fences, finds first {...} block
+  function parseNewsJson(raw) {
+    if (raw == null) throw new Error("Empty response from askClaude.");
+    // unwrap if already an object
+    if (typeof raw === "object") {
+      // some bridges wrap as { text: "..." } or { content: "..." } or { result: {...} }
+      if (raw.world || raw.tech || raw.markets) return raw;
+      if (typeof raw.text === "string") return parseNewsJson(raw.text);
+      if (typeof raw.content === "string") return parseNewsJson(raw.content);
+      if (typeof raw.response === "string") return parseNewsJson(raw.response);
+      if (raw.result) return parseNewsJson(raw.result);
+      return raw;
+    }
+    let txt = String(raw);
+    // strip code fences
+    txt = txt.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
+    // try direct parse
+    try { return JSON.parse(txt); } catch (_) {}
+    // grab first {...} block (greedy)
+    const start = txt.indexOf("{");
+    const end = txt.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      const slice = txt.slice(start, end + 1);
+      try { return JSON.parse(slice); } catch (e) {
+        const err = new Error("JSON parse failed: " + e.message);
+        err.raw = txt;
+        throw err;
+      }
+    }
+    const err = new Error("No JSON object found in response.");
+    err.raw = txt;
+    throw err;
+  }
+
+  async function load() {
+    renderLoading();
+    const userPrefs = prefsInput.value || "";
+    try { localStorage.setItem(PREFS_KEY, userPrefs); } catch (e) {}
+
+    const prompt = buildPrompt(userPrefs);
+
+    let rawRes = null;
+    try {
+      if (!window.cowork || typeof window.cowork.askClaude !== "function") {
+        throw new Error("window.cowork.askClaude is not available in this view.");
+      }
+      rawRes = await window.cowork.askClaude(prompt, []);
+      console.log("[morning-news] raw askClaude response:", rawRes);
+      const data = parseNewsJson(rawRes);
+
+      const hasAny = (Array.isArray(data.world) && data.world.length) ||
+                     (Array.isArray(data.tech) && data.tech.length) ||
+                     data.markets;
+      if (!hasAny) {
+        const e = new Error("Response parsed but contains no stories or markets.");
+        e.raw = typeof rawRes === "string" ? rawRes : JSON.stringify(rawRes, null, 2);
+        throw e;
+      }
+
+      content.innerHTML = "";
+
+      // World & Politics
+      content.appendChild(renderSection("World & Politics", data.world || []));
+      // Technology & Science
+      content.appendChild(renderSection("Technology & Science", data.tech || []));
+
+      // Any extra custom sections (e.g. Sports) — anything not in known keys
+      const known = new Set(["world", "tech", "markets"]);
+      Object.keys(data).forEach(k => {
+        if (known.has(k)) return;
+        if (Array.isArray(data[k])) {
+          const label = k.replace(/[_-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+          content.appendChild(renderSection(label, data[k]));
+        }
+      });
+
+      // Markets snapshot at the bottom
+      const m = renderMarkets(data.markets);
+      if (m) content.appendChild(m);
+
+      updatedEl.textContent = `Updated ${fmtTime(new Date())}`;
+    } catch (err) {
+      console.error("[morning-news] load error:", err, "raw:", rawRes);
+      const rawText = (err && err.raw) ? err.raw :
+                      (typeof rawRes === "string" ? rawRes :
+                       rawRes ? JSON.stringify(rawRes, null, 2) : "");
+      renderError((err && err.message) ? err.message : String(err), rawText);
+    }
+  }
+
+  fetchBtn.addEventListener("click", load);
+  refreshBtn.addEventListener("click", load);
+  prefsInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") load();
+  });
+
+  // Auto-fetch on open
+  load();
+})();
+</script>
+</body>
+</html>

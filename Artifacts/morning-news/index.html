@@ -1,0 +1,524 @@
+<!doctype html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Morning News",
+  "schemaVersion": 1,
+  "description": "Dark-mode morning news briefing. Auto-fetches World & Politics, Technology & Science, and a market snapshot (S&P, Nasdaq, BTC) via window.cowork.askClaude on load. Cards expand inline to a full summary with a Read more link. Customization bar at top accepts free-text preferences (focus topics, skip categories, add sections like Sports), persisted to localStorage. Manual refresh button re-fetches with current prefs.",
+  "mcpTools": [],
+  "mcpServerNames": []
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Morning — May 4, 2026</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0b0d10;
+    color: #e7e9ee;
+    font-family: ui-serif, Georgia, "Times New Roman", serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 22px 80px; }
+
+  header.masthead {
+    border-bottom: 1px solid #2a2f37;
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .title {
+    font-family: ui-serif, Georgia, serif;
+    font-weight: 700;
+    font-size: 30px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .sub {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 12px;
+    color: #8a93a2;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .controls input {
+    flex: 1;
+    min-width: 220px;
+    background: #14181d;
+    border: 1px solid #2a2f37;
+    border-radius: 6px;
+    color: #e7e9ee;
+    padding: 10px 12px;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .controls input:focus { border-color: #4a5260; }
+  .controls input::placeholder { color: #5a6371; }
+  .btn {
+    background: #1a1f26;
+    border: 1px solid #2a2f37;
+    color: #e7e9ee;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 13px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: #232932; border-color: #3a414c; }
+  .btn:active { background: #14181d; }
+  .btn-primary { background: #2c3340; border-color: #3a414c; }
+  .btn-primary:hover { background: #353d4b; }
+  .hint {
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 11px;
+    color: #6a7280;
+    margin-bottom: 22px;
+    line-height: 1.5;
+  }
+
+  section.cat {
+    margin: 32px 0 8px;
+  }
+  .cat-head {
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #8a93a2;
+    border-bottom: 1px solid #2a2f37;
+    padding-bottom: 6px;
+    margin-bottom: 14px;
+  }
+
+  .card {
+    border-bottom: 1px solid #1d2128;
+    padding: 14px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin: 0 -10px;
+    border-radius: 4px;
+  }
+  .card:hover { background: #11151a; }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-block;
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .chip.breaking { background: #3a1418; color: #ff6b78; border: 1px solid #5a1c24; }
+  .chip.developing { background: #3a3014; color: #ffd166; border: 1px solid #5a4a1c; }
+
+  .headline {
+    font-family: ui-serif, Georgia, serif;
+    font-size: 19px;
+    line-height: 1.3;
+    font-weight: 600;
+    color: #f4f5f8;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+  }
+  .teaser {
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 14px;
+    color: #a8b0bd;
+    margin: 6px 0 0;
+    line-height: 1.5;
+  }
+  .body {
+    display: none;
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: #0f1318;
+    border-left: 2px solid #3a414c;
+    border-radius: 0 4px 4px 0;
+    font-family: ui-serif, Georgia, serif;
+    font-size: 15px;
+    line-height: 1.65;
+    color: #d4d8e0;
+  }
+  .card.open .body { display: block; }
+  .read-more {
+    display: inline-block;
+    margin-top: 12px;
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 12px;
+    color: #8aa9ff;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .read-more:hover { border-color: #8aa9ff; }
+
+  .markets {
+    margin-top: 36px;
+    padding: 14px 16px;
+    border: 1px solid #2a2f37;
+    border-radius: 6px;
+    background: #0f1318;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+  }
+  .ticker { display: flex; flex-direction: column; gap: 2px; }
+  .ticker .name { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #8a93a2; }
+  .ticker .val { font-size: 17px; font-weight: 600; color: #f4f5f8; }
+  .ticker .chg { font-size: 13px; font-weight: 500; }
+  .chg.up { color: #5fd49a; }
+  .chg.down { color: #ff7a87; }
+  .chg.flat { color: #a8b0bd; }
+  .markets-meta {
+    flex-basis: 100%;
+    font-size: 10.5px;
+    color: #6a7280;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .empty {
+    font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+    font-size: 13px;
+    color: #6a7280;
+    padding: 8px 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <h1 class="title">The Morning</h1>
+      <div class="sub" id="dateline"></div>
+    </div>
+    <div class="sub">May 4, 2026 Edition</div>
+  </header>
+
+  <div class="controls">
+    <input id="prefs" type="text" placeholder='Customize: "skip crypto", "hide markets", "only AI", "short"' />
+    <button class="btn btn-primary" id="applyBtn">Apply</button>
+    <button class="btn" id="clearBtn" title="Clear filters">Clear</button>
+  </div>
+  <div class="hint">
+    Type a preference and hit Apply (or Enter). Try: <em>skip crypto</em>, <em>only AI</em>, <em>hide markets</em>, <em>short</em>, <em>focus on Iran</em>. Filters apply to today's edition; for tomorrow's news, ask me in chat to refresh the page.
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<script>
+(function () {
+  const PREFS_KEY = "morning_news_prefs_v2";
+
+  // ====== Today's briefing — May 4, 2026 ======
+  const NEWS = {
+    world: [
+      {
+        headline: "US denies Iranian claim that warship was struck in Strait of Hormuz",
+        teaser: "Pentagon escorts begin Monday for commercial shipping as gas hits $4.45/gal nationwide.",
+        summary: "The Pentagon has flatly denied an Iranian claim that one of its warships was hit in the Strait of Hormuz over the weekend, calling the report disinformation. Beginning Monday, US naval forces will guide commercial shipping from neutral and innocent countries through the strait, a major escalation of America's military footprint in the Gulf. The closure of the strait by Iran has pushed average US gasoline prices to $4.45 per gallon and rattled global crude markets. President Trump said over the weekend that Washington is having very positive discussions with Tehran, even as the standoff enters its 65th day. Analysts say the convoy mission carries significant risk of an inadvertent clash. Allies in the Gulf have signaled cautious support but worry about being drawn into a wider conflict.",
+        url: "https://www.cnn.com/2026/05/03/world/live-news/iran-war-news",
+        tag: "DEVELOPING"
+      },
+      {
+        headline: "Israel kills 41 in Lebanon despite ceasefire; new displacement orders issued",
+        teaser: "Strikes hit southern Lebanese towns hours after evacuation notices.",
+        summary: "Israeli airstrikes killed at least 41 people across southern Lebanon over the weekend, despite a ceasefire that was supposed to halt cross-border violence. The Israeli military issued new displacement orders for several southern towns just hours before the strikes. Lebanese authorities and UN observers condemned the attacks, while Israel said it was targeting Hezbollah infrastructure. The episode is the deadliest single incident since the truce was negotiated and threatens to unravel the agreement. Separately, Israel said it had jailed activists from a Gaza-bound aid flotilla seized in international waters, drawing protests from European governments. Humanitarian agencies warn that displacement camps in southern Lebanon are at capacity.",
+        url: "https://www.aljazeera.com/",
+        tag: null
+      },
+      {
+        headline: "Pentagon withdraws 5,000 troops from Germany, rattling NATO allies",
+        teaser: "Move adds to European fears that Washington is pulling back from the continent.",
+        summary: "The Pentagon announced the withdrawal of 5,000 American troops from Germany, the largest US drawdown in Europe in more than a decade. European officials told reporters the move came with little advance consultation and adds to growing fears that NATO allies can no longer rely on Washington. The German chancellor's office said it was seeking urgent clarification on the timeline. The decision lands as European capitals are racing to increase their own defense spending and accelerate joint procurement programs. Critics in Congress argue the cut weakens deterrence against Russia at a sensitive moment. Pentagon officials framed the move as a long-planned realignment toward the Indo-Pacific.",
+        url: "https://www.npr.org/sections/world/",
+        tag: null
+      },
+      {
+        headline: "Press freedom at lowest point in 25 years, RSF index finds",
+        teaser: "More than half of countries now rated 'difficult' or 'very serious'; US falls to 64th.",
+        summary: "Reporters Without Borders released its 2026 World Press Freedom Index, finding that press freedom has fallen to its lowest level in the index's 25-year history. More than half of the world's countries now sit in the 'difficult' or 'very serious' categories. The United States dropped seven places to 64th, with the report citing what it called the Trump administration's systematic policy of hostility toward the press. RSF flagged a sharp rise in journalist detentions, legal harassment, and platform-enabled disinformation. Norway, Denmark, and Sweden again topped the rankings, while North Korea, Eritrea, and China sat at the bottom. Press freedom advocates called for new international protections for cross-border investigative reporting.",
+        url: "https://www.democracynow.org/2026/5/4/headlines",
+        tag: null
+      },
+      {
+        headline: "Three dead in respiratory virus outbreak on Atlantic cruise ship",
+        teaser: "CDC monitoring as ship diverts to nearest port; passengers and crew quarantined onboard.",
+        summary: "Three passengers have died in an outbreak of a dangerous respiratory virus aboard a cruise ship in the Atlantic Ocean, the operator confirmed. The vessel is diverting to its nearest port, with passengers and crew quarantined onboard. The US Centers for Disease Control and Prevention said it is monitoring the situation and is preparing to send a response team to the destination port. Health officials have not yet identified the pathogen and are awaiting laboratory confirmation. Cruise industry analysts say the incident is likely to reignite debate about onboard ventilation and isolation protocols. Several other operators in the region have voluntarily increased screening.",
+        url: "https://www.democracynow.org/2026/5/4/headlines",
+        tag: "BREAKING"
+      }
+    ],
+    tech: [
+      {
+        headline: "OpenAI tops $25B in annualized revenue, weighs late-2026 IPO",
+        teaser: "Anthropic closes in at $19B as enterprise AI spending accelerates.",
+        summary: "OpenAI has surpassed $25 billion in annualized revenue and is taking early steps toward a public listing, potentially as soon as late 2026, according to people familiar with the company's plans. Rival Anthropic is approaching $19 billion in annualized revenue on the back of strong enterprise demand. Bankers describe a frothy environment where AI infrastructure and model providers are commanding multiples not seen since the late-1990s software boom. Analysts caution that compute costs and rising regulatory scrutiny remain real overhangs. The two companies' growth has helped lift cloud providers and chipmakers throughout April. A potential OpenAI listing would be one of the largest tech IPOs in history.",
+        url: "https://www.crescendo.ai/news/latest-ai-news-and-updates",
+        tag: null
+      },
+      {
+        headline: "OpenAI unveils GPT-5.4 with 1M-token context and autonomous desktop agents",
+        teaser: "Model scores 75% on OSWorld-V, executing real productivity workflows end-to-end.",
+        summary: "OpenAI unveiled GPT-5.4 with a one-million-token context window and the ability to autonomously execute multi-step workflows across software environments. The model scored 75 percent on the OSWorld-V benchmark, which simulates real desktop productivity tasks like booking travel, filing expenses, and updating spreadsheets. The release marks a clear shift from AI as a chat tool to AI as an autonomous digital coworker. Early enterprise customers are testing it inside finance, legal, and customer-service workflows, with some reporting double-digit productivity gains in pilots. Critics argue benchmarks overstate real-world reliability and warn of fresh security risks from agents that can take screen actions. OpenAI says new permission and audit-log features are designed to address those concerns.",
+        url: "https://llm-stats.com/llm-updates",
+        tag: null
+      },
+      {
+        headline: "Seven AI giants ink classified-network deals with Pentagon",
+        teaser: "Microsoft, Amazon, Google and others to deploy models inside secret defense systems.",
+        summary: "Seven leading artificial intelligence companies have reached deals to deploy their technology inside classified Pentagon computer networks, the Defense Department said Friday. The agreements include Microsoft, Amazon, and Google, alongside several model labs, and are intended to bring frontier AI capabilities directly into secret-level systems. The Pentagon framed the move as essential for keeping pace with China's military AI investments. Civil-liberties advocates raised concerns about oversight, accountability, and the speed at which models trained on commercial data are being repurposed for defense use. Lawmakers from both parties signaled they want briefings on guardrails and red-team practices. Implementation will roll out in phases through 2027.",
+        url: "https://www.washingtonpost.com/technology/2026/05/01/pentagon-ai-deals-microsoft-amazon-google-classified-military/",
+        tag: null
+      },
+      {
+        headline: "Novo Nordisk taps OpenAI to overhaul drug discovery and operations",
+        teaser: "Full deployment by end of 2026; obesity and diabetes treatments first in line.",
+        summary: "Danish pharmaceutical giant Novo Nordisk announced a strategic partnership with OpenAI to integrate AI across its entire business, from drug discovery and clinical trials to manufacturing, supply chains, and commercial operations. The company said full deployment is planned by the end of 2026 and is aimed at accelerating identification of new obesity and diabetes treatments. The deal is one of the largest enterprise AI commitments by a pharmaceutical company to date. Novo executives said early proofs of concept have already shortened certain candidate-screening timelines. Analysts say the partnership could reset expectations for AI's role in big-pharma R&D. Privacy and data-residency provisions for patient data are still being finalized.",
+        url: "https://www.aiandnews.com/blog/latest-ai-news-may-2026/",
+        tag: null
+      },
+      {
+        headline: "NASA's SPHEREx maps water ice across the Milky Way",
+        teaser: "Mission confirms a key building block of life is widespread among interstellar clouds.",
+        summary: "NASA's SPHEREx mission has produced the first wide-area map of water ice across vast regions of the Milky Way, confirming that an essential molecule for life on Earth abounds in space. The result strengthens the case that water-rich material is routinely incorporated into newly forming stars and planetary systems. Astronomers say the map will help target follow-up observations by JWST and ground telescopes. Separately, an AI tool called RAVEN was used to comb through data from NASA's TESS mission and identified more than 100 previously hidden exoplanet candidates. The findings underscore how machine learning is reshaping how astronomers extract signal from large public datasets. NASA plans to release a curated catalog of the new candidates later this month.",
+        url: "https://www.sciencenews.org/",
+        tag: null
+      }
+    ],
+    markets: {
+      sp500:   { value: "7,230.12",  change_pct: 0.29 },
+      nasdaq:  { value: "25,114.44", change_pct: 0.89 },
+      bitcoin: { value: "$79,810",   change_pct: 0.28 }
+    },
+    markets_note: "Latest available close (May 1) for equities; BTC spot for May 4."
+  };
+
+  // ====== UI ======
+  const prefsInput = document.getElementById("prefs");
+  const content = document.getElementById("content");
+  const applyBtn = document.getElementById("applyBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const datelineEl = document.getElementById("dateline");
+
+  try {
+    const saved = localStorage.getItem(PREFS_KEY);
+    if (saved) prefsInput.value = saved;
+  } catch (e) {}
+
+  datelineEl.textContent = new Date().toLocaleDateString(undefined, {
+    weekday: "long", year: "numeric", month: "long", day: "numeric"
+  });
+
+  function escapeHtml(s) {
+    if (s == null) return "";
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[c]);
+  }
+  function chipFor(tag) {
+    if (tag === "BREAKING") return '<span class="chip breaking">● Breaking</span>';
+    if (tag === "DEVELOPING") return '<span class="chip developing">◐ Developing</span>';
+    return "";
+  }
+
+  function renderStoryCard(s, brief) {
+    const safeUrl = s.url && /^https?:\/\//i.test(s.url) ? s.url : "";
+    const summary = brief
+      ? (s.summary.split(/(?<=\.)\s+/).slice(0, 2).join(" "))
+      : s.summary;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-head">
+        ${chipFor(s.tag)}
+        <h3 class="headline">${escapeHtml(s.headline || "Untitled")}</h3>
+      </div>
+      <p class="teaser">${escapeHtml(s.teaser || "")}</p>
+      <div class="body">
+        <div>${escapeHtml(summary || "No summary available.")}</div>
+        ${safeUrl ? `<a class="read-more" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">Read more →</a>` : ""}
+      </div>
+    `;
+    card.addEventListener("click", (e) => {
+      if (e.target.closest("a")) return;
+      card.classList.toggle("open");
+    });
+    return card;
+  }
+
+  function renderSection(title, stories, brief) {
+    const section = document.createElement("section");
+    section.className = "cat";
+    const head = document.createElement("div");
+    head.className = "cat-head";
+    head.textContent = title;
+    section.appendChild(head);
+    if (!Array.isArray(stories) || stories.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "No stories matched your filter.";
+      section.appendChild(empty);
+    } else {
+      stories.forEach(s => section.appendChild(renderStoryCard(s, brief)));
+    }
+    return section;
+  }
+
+  function chgClass(n) {
+    if (typeof n !== "number" || isNaN(n)) return "flat";
+    if (n > 0) return "up";
+    if (n < 0) return "down";
+    return "flat";
+  }
+  function chgStr(n) {
+    if (typeof n !== "number" || isNaN(n)) return "—";
+    const sign = n > 0 ? "+" : "";
+    return `${sign}${n.toFixed(2)}%`;
+  }
+
+  function renderMarkets(m, note) {
+    if (!m) return null;
+    const wrap = document.createElement("div");
+    wrap.className = "markets";
+    const items = [
+      ["S&P 500", m.sp500],
+      ["Nasdaq",  m.nasdaq],
+      ["Bitcoin", m.bitcoin],
+    ];
+    items.forEach(([name, t]) => {
+      if (!t) return;
+      const el = document.createElement("div");
+      el.className = "ticker";
+      const cls = chgClass(t.change_pct);
+      el.innerHTML = `
+        <span class="name">${escapeHtml(name)}</span>
+        <span class="val">${escapeHtml(t.value || "—")}</span>
+        <span class="chg ${cls}">${chgStr(t.change_pct)}</span>
+      `;
+      wrap.appendChild(el);
+    });
+    if (note) {
+      const meta = document.createElement("div");
+      meta.className = "markets-meta";
+      meta.textContent = note;
+      wrap.appendChild(meta);
+    }
+    return wrap;
+  }
+
+  // ====== Filtering: interpret free-text prefs locally ======
+  function parsePrefs(raw) {
+    const t = (raw || "").toLowerCase();
+    const showCrypto = !/\b(skip|no|hide|without)\s+(crypto|bitcoin|btc)\b/.test(t);
+    const showMarkets = !/\b(skip|no|hide|without)\s+(markets?|stocks?|finance)\b/.test(t);
+    const showWorld = !/\b(skip|no|hide|without)\s+(world|politics)\b/.test(t);
+    const showTech = !/\b(skip|no|hide|without)\s+(tech|technology|ai|science)\b/.test(t);
+    const brief = /\b(short|brief|tl;?dr|concise|quick)\b/.test(t);
+    // "only X" filters
+    const onlyMatch = t.match(/\bonly\s+([a-z ,]+)/);
+    let onlyTopics = null;
+    if (onlyMatch) {
+      onlyTopics = onlyMatch[1].split(/[, ]+/).filter(Boolean);
+    }
+    // "focus on X" / topic emphasis (treated as keyword filter)
+    const focusMatch = t.match(/\b(focus on|emphasi[sz]e|more (?:on|about))\s+([a-z ,]+?)(?:[.;]|$)/);
+    let focusKeywords = null;
+    if (focusMatch) {
+      focusKeywords = focusMatch[2].split(/[, ]+/).filter(Boolean);
+    }
+    return { showCrypto, showMarkets, showWorld, showTech, brief, onlyTopics, focusKeywords };
+  }
+
+  function storyMatchesKeywords(story, kws) {
+    if (!kws || kws.length === 0) return true;
+    const hay = (story.headline + " " + story.teaser + " " + story.summary).toLowerCase();
+    return kws.some(k => k.length >= 3 && hay.includes(k));
+  }
+
+  function applyFilters() {
+    const raw = prefsInput.value || "";
+    try { localStorage.setItem(PREFS_KEY, raw); } catch (e) {}
+    const p = parsePrefs(raw);
+    content.innerHTML = "";
+
+    let world = NEWS.world.slice();
+    let tech = NEWS.tech.slice();
+
+    // "only" filter narrows by keyword across both buckets
+    if (p.onlyTopics && p.onlyTopics.length) {
+      world = world.filter(s => storyMatchesKeywords(s, p.onlyTopics));
+      tech = tech.filter(s => storyMatchesKeywords(s, p.onlyTopics));
+    }
+    // focus reorders: matching first, others after
+    if (p.focusKeywords && p.focusKeywords.length) {
+      const sortFocus = arr => {
+        const hits = arr.filter(s => storyMatchesKeywords(s, p.focusKeywords));
+        const rest = arr.filter(s => !storyMatchesKeywords(s, p.focusKeywords));
+        return hits.concat(rest);
+      };
+      world = sortFocus(world);
+      tech = sortFocus(tech);
+    }
+
+    if (p.showWorld) content.appendChild(renderSection("World & Politics", world, p.brief));
+    if (p.showTech)  content.appendChild(renderSection("Technology & Science", tech, p.brief));
+
+    if (p.showMarkets) {
+      // optionally drop bitcoin
+      const m = Object.assign({}, NEWS.markets);
+      if (!p.showCrypto) delete m.bitcoin;
+      const mEl = renderMarkets(m, NEWS.markets_note);
+      if (mEl) content.appendChild(mEl);
+    }
+  }
+
+  applyBtn.addEventListener("click", applyFilters);
+  clearBtn.addEventListener("click", () => {
+    prefsInput.value = "";
+    try { localStorage.removeItem(PREFS_KEY); } catch (e) {}
+    applyFilters();
+  });
+  prefsInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") applyFilters();
+  });
+
+  // Initial render
+  applyFilters();
+})();
+</script>
+</body>
+</html>
